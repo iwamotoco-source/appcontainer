@@ -347,7 +347,6 @@
     .storage-detail { display:flex; gap:14px; flex-wrap:wrap; font-size:0.76rem; color:var(--muted); }
     .storage-detail span { color:var(--text); font-weight:600; }
 
-    /* 初回セットアップバナー */
     #setup-banner {
       background: rgba(108,99,255,0.1); border: 1px solid rgba(108,99,255,0.3);
       border-radius: 12px; padding: 16px 20px; margin-bottom: 20px;
@@ -552,7 +551,9 @@
       </div>
     </div>
     <div id="viewer-frame-wrap">
-      <iframe id="viewer-frame" sandbox="allow-scripts allow-forms allow-modals allow-popups"></iframe>
+      <!-- ↓↓↓ ここだけ変更 ↓↓↓ -->
+      <iframe id="viewer-frame" sandbox="allow-scripts allow-forms allow-modals allow-popups allow-downloads"></iframe>
+      <!-- ↑↑↑ ここだけ変更 ↑↑↑ -->
     </div>
   </div>
 </div>
@@ -586,8 +587,6 @@
       <button class="btn-close" onclick="closeModal('settings-modal')">✕</button>
     </div>
     <div class="modal-body">
-
-      <!-- GitHub接続設定 -->
       <div class="settings-section">
         <div class="settings-section-title">🔑 GitHub 接続設定</div>
         <div class="form-group">
@@ -605,8 +604,6 @@
         </div>
         <button class="btn-primary" onclick="saveSettings()">💾 保存して再読み込み</button>
       </div>
-
-      <!-- テーマ -->
       <div class="settings-section">
         <div class="settings-section-title">🎨 テーマ</div>
         <div class="theme-toggle">
@@ -614,8 +611,6 @@
           <div class="theme-btn" id="theme-light" onclick="setTheme('light')"><span class="t-icon">☀️</span>ライトモード</div>
         </div>
       </div>
-
-      <!-- 容量 -->
       <div class="settings-section">
         <div class="settings-section-title">📊 Gist 使用容量</div>
         <div class="storage-info">
@@ -633,8 +628,6 @@
           </div>
         </div>
       </div>
-
-      <!-- 現在の接続情報 -->
       <div class="settings-section">
         <div class="settings-section-title">📋 現在の接続情報</div>
         <div class="key-card">
@@ -652,7 +645,6 @@
           </div>
         </div>
       </div>
-
     </div>
   </div>
 </div>
@@ -675,7 +667,6 @@
 <div id="toast"></div>
 
 <script>
-  // ===== Config (localStorageで管理) =====
   const DEFAULT_GIST_ID = '2c2638d673da5d7f1d0762c8cb518fd1';
   const DEFAULT_FILE    = 'webapp-warehouse.json';
   const GIST_LIMIT_BYTES = 10 * 1024 * 1024;
@@ -688,7 +679,6 @@
     return { token: '', gistId: DEFAULT_GIST_ID, file: DEFAULT_FILE };
   }
   function setCfg(cfg) { localStorage.setItem('ww-cfg', JSON.stringify(cfg)); }
-
   function getAPI() { return `https://api.github.com/gists/${getCfg().gistId}`; }
 
   const ICONS = ['🎨','📊','🎵','🎮','🧮','🗒️','🌐','⏰','📷','🔐',
@@ -711,13 +701,11 @@
   let currentBmCode = '';
   let openFolderIdForRegister = null;
 
-  // ===== Status =====
   function setStatus(s, msg) {
     document.getElementById('db-dot').className = 'db-dot ' + s;
     document.getElementById('db-label').textContent = msg || {loading:'接続中...', online:'同期済み', offline:'エラー'}[s];
   }
 
-  // ===== Gist API =====
   async function loadData() {
     const cfg = getCfg();
     if (!cfg.token) {
@@ -767,14 +755,11 @@
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
   }
 
-  // ===== Settings =====
   function openSettings() {
     const cfg = getCfg();
     document.getElementById('s-token').value = cfg.token || '';
     document.getElementById('s-gist').value  = cfg.gistId || DEFAULT_GIST_ID;
     document.getElementById('s-file').value  = cfg.file  || DEFAULT_FILE;
-
-    // 容量
     const content = JSON.stringify({ apps, folders }, null, 2);
     const bytes   = new Blob([content]).size;
     const pct     = Math.min((bytes / GIST_LIMIT_BYTES) * 100, 100);
@@ -787,16 +772,14 @@
     const bar = document.getElementById('st-bar');
     bar.style.width = pct + '%';
     bar.className = 'storage-bar-fill' + (pct > 80 ? ' danger' : pct > 50 ? ' warn' : '');
-
     const theme = document.documentElement.getAttribute('data-theme');
     document.getElementById('theme-dark').classList.toggle('active',  theme === 'dark');
     document.getElementById('theme-light').classList.toggle('active', theme === 'light');
-
     openModal('settings-modal');
   }
 
   function saveSettings() {
-    const token = document.getElementById('s-token').value.trim();
+    const token  = document.getElementById('s-token').value.trim();
     const gistId = document.getElementById('s-gist').value.trim() || DEFAULT_GIST_ID;
     const file   = document.getElementById('s-file').value.trim()  || DEFAULT_FILE;
     if (!token) { showToast('⚠️ トークンを入力してください'); return; }
@@ -806,7 +789,6 @@
     loadData();
   }
 
-  // ===== Filter =====
   function setFilter(type) {
     filterType = type;
     document.querySelectorAll('.type-filter').forEach(b => {
@@ -816,7 +798,6 @@
     renderAll();
   }
 
-  // ===== Render =====
   function renderAll() {
     const q    = document.getElementById('search-input').value.toLowerCase();
     const sort = document.getElementById('sort-select').value;
@@ -924,7 +905,6 @@
       </div>`;
   }
 
-  // ===== Drag & Drop =====
   let dragAppId = null;
 
   function appDragStart(e, id) {
@@ -950,7 +930,6 @@
     catch(e) { showToast('❌ 保存失敗: ' + e.message); }
   }
 
-  // ===== Folder View =====
   function openFolderView(folderId) {
     const f = folders.find(x => x.id === folderId);
     if (!f) return;
@@ -965,7 +944,6 @@
     openModal('folder-view-modal');
   }
 
-  // ===== Folder CRUD =====
   function openFolderNameModal(folderId) {
     editingFolderId = folderId;
     if (folderId) {
@@ -1010,7 +988,6 @@
     openModal('confirm-modal');
   }
 
-  // ===== App Actions =====
   function handleCardClick(id) {
     const a = apps.find(x => x.id === id);
     if (!a) return;
@@ -1061,7 +1038,6 @@
     if (a) navigator.clipboard.writeText(a.bm||'').then(() => showToast('📋 コードをコピーしました！'));
   }
 
-  // ===== Register Modal =====
   function openRegisterModal(folderId) {
     editingId = null;
     openFolderIdForRegister = folderId || null;
@@ -1156,7 +1132,6 @@
     openModal('confirm-modal');
   }
 
-  // ===== Type Select =====
   function selectType(type) {
     currentType = type;
     document.querySelectorAll('.type-tab').forEach(t => {
@@ -1168,7 +1143,6 @@
     document.getElementById('field-bm').classList.toggle('visible',   type === 'bm');
   }
 
-  // ===== Icon =====
   function selectIcon(emoji) {
     document.getElementById('f-icon-input').value = emoji;
     document.querySelectorAll('.icon-btn').forEach(b => b.classList.toggle('selected', b.textContent === emoji));
@@ -1177,7 +1151,6 @@
     document.querySelectorAll('.icon-btn').forEach(b => b.classList.toggle('selected', b.textContent === val));
   }
 
-  // ===== Theme =====
   function setTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('ww-theme', theme);
@@ -1186,7 +1159,6 @@
     showToast(theme === 'dark' ? '🌙 ダークモード' : '☀️ ライトモード');
   }
 
-  // ===== Modal =====
   function openModal(id)  { document.getElementById(id).classList.add('open'); }
   function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
@@ -1204,7 +1176,6 @@
     ['register-modal','folder-name-modal','folder-view-modal','bm-modal','settings-modal','confirm-modal'].forEach(closeModal);
   });
 
-  // ===== Toast =====
   let toastTimer;
   function showToast(msg) {
     const el = document.getElementById('toast');
@@ -1214,7 +1185,6 @@
     toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
   }
 
-  // ===== Sort =====
   function sortApps(list, sort) {
     if (sort === 'newest') return [...list].sort((a,b) => b.createdAt - a.createdAt);
     if (sort === 'oldest') return [...list].sort((a,b) => a.createdAt - b.createdAt);
@@ -1222,7 +1192,6 @@
     return list;
   }
 
-  // ===== Utils =====
   function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
   function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function escAttr(s) { return String(s).replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
@@ -1239,7 +1208,6 @@
       ICONS.map(ic => `<button class="icon-btn" onclick="selectIcon('${ic}')">${ic}</button>`).join('');
   }
 
-  // ===== Init =====
   (function init() {
     const saved = localStorage.getItem('ww-theme');
     if (saved) document.documentElement.setAttribute('data-theme', saved);
