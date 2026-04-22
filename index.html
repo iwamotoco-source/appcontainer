@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>WEBアプリ倉庫</title>
+<style>
+:root{
+  --bg:#0f1117;--bg2:#1a1d27;--bg3:#242736;--bg4:#2e3248;
+  --accent:#4f8ef7;--green:#3dd68c;--yellow:#f7c948;
+  --red:#f75f5f;--cyan:#4fd6f7;--text:#e8eaf0;--text2:#9aa0b8;
+  --border:#353a52;--radius:12px;--shadow:0 8px 32px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;background:var(--bg);color:var(--text);
+  font-family:'Segoe UI',Meiryo,sans-serif;overscroll-behavior:none;}
+
+/* ── HEADER ── */
+#header{
+  position:sticky;top:0;z-index:100;
+  background:rgba(15,17,23,.92);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+  padding:10px 16px;display:flex;align-items:center;gap:10px;
+}
+#header h1{font-size:16px;font-weight:700;color:var(--accent);white-space:nowrap;}
+#searchBox{
+  flex:1;height:36px;padding:0 12px;
+  background:var(--bg3);border:1px solid var(--border);
+  border-radius:8px;color:var(--text);font-size:13px;outline:none;
+  transition:.15s;
+}
+#searchBox:focus{border-color:var(--accent);}
+#addBtn{
+  height:36px;padding:0 14px;border-radius:8px;
+  background:var(--accent);border:none;color:#fff;
+  font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;
+  transition:.15s;flex-shrink:0;
+}
+#addBtn:hover{filter:brightness(1.12);}
+#settingsBtn{
+  width:36px;height:36px;border-radius:8px;
+  background:var(--bg3);border:1px solid var(--border);
+  color:var(--text2);font-size:16px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+#settingsBtn:hover{border-color:var(--accent);color:var(--text);}
+
+/* ── STATUS BAR ── */
+#statusBar{
+  padding:6px 16px;font-size:11px;color:var(--text2);
+  display:flex;align-items:center;gap:8px;
+}
+#statusDot{width:7px;height:7px;border-radius:50%;background:var(--green);}
+#statusDot.loading{background:var(--yellow);animation:pulse 1s infinite;}
+#statusDot.error{background:var(--red);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+
+/* ── MAIN LAYOUT ── */
+#layout{display:flex;height:calc(100vh - 94px);}
+#sidebar{
+  width:180px;flex-shrink:0;
+  border-right:1px solid var(--border);
+  overflow-y:auto;padding:8px;
+  display:flex;flex-direction:column;gap:4px;
+}
+#sidebar::-webkit-scrollbar{width:3px;}
+#sidebar::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.folder-btn{
+  width:100%;padding:7px 10px;border-radius:7px;
+  background:transparent;border:none;color:var(--text2);
+  font-size:12px;font-weight:600;text-align:left;cursor:pointer;
+  transition:.12s;display:flex;align-items:center;gap:6px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.folder-btn:hover{background:var(--bg3);color:var(--text);}
+.folder-btn.active{background:rgba(79,142,247,.15);color:var(--accent);}
+.folder-sep{height:1px;background:var(--border);margin:4px 0;}
+
+#main{flex:1;overflow-y:auto;padding:14px;}
+#main::-webkit-scrollbar{width:4px;}
+#main::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+/* ── CARDS ── */
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;}
+.card{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:var(--radius);padding:14px;cursor:pointer;
+  transition:.15s;position:relative;user-select:none;
+}
+.card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:var(--shadow);}
+.card.drag-over{border-color:var(--cyan);background:var(--bg3);}
+.card-icon{font-size:28px;margin-bottom:8px;}
+.card-name{font-size:13px;font-weight:700;margin-bottom:4px;word-break:break-word;}
+.card-desc{font-size:11px;color:var(--text2);line-height:1.5;
+           display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.card-folder{
+  display:inline-block;margin-top:6px;
+  font-size:10px;padding:2px 7px;border-radius:5px;
+  background:rgba(79,142,247,.12);color:var(--accent);font-weight:600;
+}
+.card-menu{
+  position:absolute;top:8px;right:8px;
+  width:24px;height:24px;border-radius:5px;
+  background:transparent;border:none;color:var(--text2);
+  font-size:14px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;transition:.12s;
+}
+.card:hover .card-menu{opacity:1;}
+.card-menu:hover{background:var(--bg4);color:var(--text);}
+
+/* ── EMPTY ── */
+#emptyMsg{
+  grid-column:1/-1;text-align:center;padding:60px 20px;
+  color:var(--text2);font-size:13px;line-height:2;
+}
+
+/* ── CONTEXT MENU ── */
+#ctxMenu{
+  position:fixed;z-index:500;
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:8px;padding:4px;min-width:140px;
+  box-shadow:var(--shadow);display:none;
+}
+.ctx-item{
+  padding:8px 14px;font-size:12px;cursor:pointer;border-radius:5px;
+  transition:.12s;display:flex;align-items:center;gap:8px;
+}
+.ctx-item:hover{background:var(--bg3);}
+.ctx-item.danger{color:var(--red);}
+
+/* ── MODAL OVERLAY ── */
+#modalOverlay{
+  display:none;
+  position:fixed;inset:0;z-index:200;
+  background:rgba(0,0,0,.65);
+  /* iOS scroll fix: flex center */
+  align-items:flex-start;
+  justify-content:center;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  padding:20px 0;
+}
+#modalOverlay.open{display:flex;}
+
+/* ── MODAL BOX ── */
+.modal{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:var(--radius);width:92%;max-width:520px;
+  box-shadow:var(--shadow);
+  /* iOS: don't use height:100% — let content determine height */
+  margin:auto;
+}
+.modal-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 18px;border-bottom:1px solid var(--border);
+  position:sticky;top:0;background:var(--bg2);z-index:10;
+  border-radius:var(--radius) var(--radius) 0 0;
+}
+.modal-header h2{font-size:15px;font-weight:700;}
+.modal-close{
+  width:30px;height:30px;border-radius:6px;
+  background:transparent;border:none;color:var(--text2);
+  font-size:18px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+.modal-close:hover{background:var(--bg3);color:var(--text);}
+.modal-body{padding:16px 18px 20px;}
+
+/* ── FORM ── */
+.fg{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;}
+.fg label{font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.4px;}
+.fg input,.fg select,.fg textarea{
+  padding:8px 12px;background:var(--bg3);
+  border:1px solid var(--border);border-radius:7px;
+  color:var(--text);font-size:13px;outline:none;transition:.15s;
+  font-family:inherit;
+}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--accent);}
+.fg textarea{resize:vertical;min-height:60px;}
+.btn{
+  height:38px;padding:0 16px;border-radius:7px;
+  border:1px solid var(--border);background:var(--bg3);
+  color:var(--text);font-size:13px;font-weight:600;
+  cursor:pointer;transition:.15s;
+}
+.btn:hover{background:var(--bg4);border-color:var(--accent);}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff;}
+.btn.pri:hover{filter:brightness(1.1);}
+.btn.danger{background:var(--red);border-color:var(--red);color:#fff;}
+.btn.danger:hover{filter:brightness(1.1);}
+.btn-row{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;}
+
+/* ── APP VIEWER MODAL ── */
+#viewerOverlay{
+  display:none;
+  position:fixed;inset:0;z-index:300;
+  background:var(--bg);flex-direction:column;
+}
+#viewerOverlay.open{display:flex;}
+#viewerBar{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 14px;background:var(--bg2);
+  border-bottom:1px solid var(--border);flex-shrink:0;
+}
+#viewerTitle{font-size:14px;font-weight:700;flex:1;}
+#viewerFrame{flex:1;border:none;background:#fff;}
+#viewerClose{
+  height:32px;padding:0 14px;border-radius:6px;
+  background:var(--bg3);border:1px solid var(--border);
+  color:var(--text);font-size:12px;font-weight:600;cursor:pointer;
+}
+#viewerClose:hover{border-color:var(--red);color:var(--red);}
+
+/* ── TOAST ── */
+#toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  background:var(--bg2);border:1px solid var(--green);
+  border-radius:8px;padding:8px 20px;
+  font-size:12px;color:var(--green);
+  z-index:9999;display:none;white-space:nowrap;
+  box-shadow:var(--shadow);
+}
+
+/* ── RESPONSIVE ── */
+@media(max-width:600px){
+  #sidebar{display:none;}
+  #grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));}
+  #header h1{font-size:14px;}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <h1>📦 WEBアプリ倉庫</h1>
+  <input id="searchBox" type="search" placeholder="アプリを検索...">
+  <button id="addBtn" onclick="openAddModal()">＋ 追加</button>
+  <button id="settingsBtn" onclick="openSettingsModal()" title="設定">⚙</button>
+</div>
+
+<!-- STATUS -->
+<div id="statusBar">
+  <div id="statusDot" class="loading"></div>
+  <span id="statusText">読み込み中...</span>
+</div>
+
+<!-- LAYOUT -->
+<div id="layout">
+  <div id="sidebar" id="sidebar"></div>
+  <div id="main">
+    <div id="grid"></div>
+  </div>
+</div>
+
+<!-- CONTEXT MENU -->
+<div id="ctxMenu">
+  <div class="ctx-item" onclick="ctxOpen()">🚀 開く</div>
+  <div class="ctx-item" onclick="ctxEdit()">✏️ 編集</div>
+  <div class="ctx-item" onclick="ctxMove()">📁 フォルダ移動</div>
+  <div class="ctx-item danger" onclick="ctxDelete()">🗑 削除</div>
+</div>
+
+<!-- ADD/EDIT MODAL -->
+<div id="modalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle">アプリを追加</h2>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fg">
+        <label>アイコン（絵文字）</label>
+        <input id="fIcon" placeholder="🚀" maxlength="4">
+      </div>
+      <div class="fg">
+        <label>アプリ名 *</label>
+        <input id="fName" placeholder="マイアプリ">
+      </div>
+      <div class="fg">
+        <label>説明</label>
+        <textarea id="fDesc" placeholder="どんなアプリか説明..."></textarea>
+      </div>
+      <div class="fg">
+        <label>フォルダ</label>
+        <select id="fFolder"></select>
+      </div>
+      <div class="fg">
+        <label>HTML（直接貼り付け）</label>
+        <textarea id="fHtml" style="min-height:100px;font-family:monospace;font-size:11px;" placeholder="<!DOCTYPE html>..."></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="closeModal()">キャンセル</button>
+        <button class="btn pri" onclick="saveApp()">💾 保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div id="settingsOverlay" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.65);align-items:flex-start;justify-content:center;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:20px 0;">
+  <div class="modal" style="margin:auto;">
+    <div class="modal-header">
+      <h2>⚙ 設定</h2>
+      <button class="modal-close" onclick="closeSettings()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fg">
+        <label>Gist ID</label>
+        <input id="sGistId" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+      </div>
+      <div class="fg">
+        <label>GitHub Token</label>
+        <input id="sToken" type="password" placeholder="ghp_...">
+      </div>
+      <div class="fg">
+        <label>ファイル名</label>
+        <input id="sFilename" placeholder="webapp-warehouse.json">
+      </div>
+      <div class="fg">
+        <label>フォルダ管理</label>
+        <div id="folderMgr" style="display:flex;flex-direction:column;gap:6px;"></div>
+        <div style="display:flex;gap:6px;margin-top:6px;">
+          <input id="newFolderInput" placeholder="フォルダ名" style="flex:1;padding:7px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:12px;outline:none;">
+          <button class="btn" style="height:34px;" onclick="addFolder()">追加</button>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn danger" onclick="clearAllData()">🗑 全データ消去</button>
+        <button class="btn pri" onclick="saveSettings()">💾 保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- APP VIEWER -->
+<div id="viewerOverlay">
+  <div id="viewerBar">
+    <span id="viewerTitle"></span>
+    <button id="viewerClose" onclick="closeViewer()">✕ 閉じる</button>
+  </div>
+  <iframe id="viewerFrame" sandbox="allow-scripts allow-forms allow-modals"></iframe>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════
+// CONFIG & STATE
+// ═══════════════════════════════════
+const DEFAULTS = {
+  gistId:   '2c2638d673da5d7f1d0762c8cb518fd1',
+  token:    '',
+  filename: 'webapp-warehouse.json'
+};
+
+let CFG = {...DEFAULTS};
+let DB  = { apps: [], folders: ['未分類', 'ツール', 'ゲーム'] };
+let currentFolder = 'すべて';
+let searchQ = '';
+let ctxTarget = null;
+let editingId = null;
+let saveTimer = null;
+
+// ═══════════════════════════════════
+// INIT
+// ═══════════════════════════════════
+(function init() {
+  loadConfig();
+  loadFromGist();
+  document.getElementById('searchBox').addEventListener('input', e => {
+    searchQ = e.target.value.toLowerCase();
+    renderGrid();
+  });
+  document.addEventListener('click', () => hideCtxMenu());
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeModal(); closeSettings(); closeViewer(); }
+  });
+})();
+
+// ═══════════════════════════════════
+// CONFIG (localStorage)
+// ═══════════════════════════════════
+function loadConfig() {
+  try {
+    const s = localStorage.getItem('ww_cfg');
+    if (s) CFG = {...DEFAULTS, ...JSON.parse(s)};
+  } catch(e) {}
+}
+function saveConfig() {
+  localStorage.setItem('ww_cfg', JSON.stringify(CFG));
+}
+
+// ═══════════════════════════════════
+// GIST I/O
+// ═══════════════════════════════════
+async function loadFromGist() {
+  setStatus('loading', '読み込み中...');
+  try {
+    const url = `https://api.github.com/gists/${CFG.gistId}`;
+    const headers = { 'Accept': 'application/vnd.github+json' };
+    if (CFG.token) headers['Authorization'] = `token ${CFG.token}`;
+
+    const res = await fetch(url, { headers });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const file = data.files[CFG.filename];
+    if (!file) throw new Error(`${CFG.filename} が見つかりません`);
+
+    const content = file.truncated
+      ? await (await fetch(file.raw_url)).json()
+      : JSON.parse(file.content);
+
+    DB = content;
+    if (!DB.folders) DB.folders = ['未分類', 'ツール', 'ゲーム'];
+    setStatus('ok', `${DB.apps.length} 件読み込み完了`);
+    renderAll();
+  } catch(e) {
+    setStatus('error', `読み込みエラー: ${e.message}`);
+    // fallback to localStorage
+    try {
+      const local = localStorage.getItem('ww_db');
+      if (local) { DB = JSON.parse(local); renderAll(); }
+    } catch(_) {}
+  }
+}
+
+async function saveToGist() {
+  if (!CFG.token || !CFG.gistId) {
+    localStorage.setItem('ww_db', JSON.stringify(DB));
+    toast('ローカル保存（token未設定）');
+    return;
+  }
+  try {
+    const res = await fetch(`https://api.github.com/gists/${CFG.gistId}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `token ${CFG.token}`,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        files: { [CFG.filename]: { content: JSON.stringify(DB, null, 2) } }
+      })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    localStorage.setItem('ww_db', JSON.stringify(DB));
+    toast('💾 Gistに保存しました');
+  } catch(e) {
+    localStorage.setItem('ww_db', JSON.stringify(DB));
+    toast(`⚠ Gist保存失敗（ローカル保存）: ${e.message}`);
+  }
+}
+
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveToGist, 800);
+}
+
+// ═══════════════════════════════════
+// RENDER
+// ═══════════════════════════════════
+function renderAll() {
+  renderSidebar();
+  renderGrid();
+}
+
+function renderSidebar() {
+  const sb = document.getElementById('sidebar');
+  const folders = ['すべて', ...DB.folders];
+  sb.innerHTML = folders.map(f =>
+    `<button class="folder-btn ${f===currentFolder?'active':''}"
+      onclick="setFolder('${escAttr(f)}')">${folderIcon(f)} ${escHtml(f)}</button>`
+  ).join('') + '<div class="folder-sep"></div>';
+}
+
+function renderGrid() {
+  const grid = document.getElementById('grid');
+  let apps = DB.apps.filter(a => {
+    const matchFolder = currentFolder === 'すべて' || (a.folder||'未分類') === currentFolder;
+    const matchSearch = !searchQ ||
+      a.name.toLowerCase().includes(searchQ) ||
+      (a.desc||'').toLowerCase().includes(searchQ);
+    return matchFolder && matchSearch;
+  });
+
+  if (!apps.length) {
+    grid.innerHTML = `<div id="emptyMsg">📭 アプリが見つかりません<br><small>＋ 追加ボタンでアプリを登録できます</small></div>`;
+    return;
+  }
+  grid.innerHTML = apps.map(a => `
+    <div class="card" data-id="${a.id}"
+      onclick="openApp('${a.id}')"
+      ondragstart="dragStart(event,'${a.id}')"
+      ondragover="event.preventDefault();this.classList.add('drag-over')"
+      ondragleave="this.classList.remove('drag-over')"
+      ondrop="dragDrop(event,'${a.id}')"
+      draggable="true"
+      oncontextmenu="showCtx(event,'${a.id}')">
+      <button class="card-menu" onclick="event.stopPropagation();showCtx(event,'${a.id}')">⋮</button>
+      <div class="card-icon">${escHtml(a.icon||'📄')}</div>
+      <div class="card-name">${escHtml(a.name)}</div>
+      <div class="card-desc">${escHtml(a.desc||'')}</div>
+      ${a.folder&&a.folder!=='未分類'?`<div class="card-folder">${escHtml(a.folder)}</div>`:''}
+    </div>
+  `).join('');
+}
+
+function setFolder(f) {
+  currentFolder = f;
+  renderAll();
+}
+
+function folderIcon(f) {
+  if (f==='すべて') return '🗂';
+  if (f==='ツール') return '🔧';
+  if (f==='ゲーム') return '🎮';
+  return '📁';
+}
+
+// ═══════════════════════════════════
+// APP OPEN
+// ═══════════════════════════════════
+function openApp(id) {
+  const a = DB.apps.find(x => x.id===id);
+  if (!a) return;
+  if (a.url) { window.open(a.url,'_blank'); return; }
+  if (!a.html) { toast('HTMLが登録されていません'); return; }
+  document.getElementById('viewerTitle').textContent = `${a.icon||'📄'} ${a.name}`;
+  const frame = document.getElementById('viewerFrame');
+  const blob = new Blob([a.html], {type:'text/html'});
+  frame.src = URL.createObjectURL(blob);
+  document.getElementById('viewerOverlay').classList.add('open');
+}
+
+function closeViewer() {
+  document.getElementById('viewerOverlay').classList.remove('open');
+  document.getElementById('viewerFrame').src = 'about:blank';
+}
+
+// ═══════════════════════════════════
+// ADD / EDIT MODAL
+// ═══════════════════════════════════
+function openAddModal() {
+  editingId = null;
+  document.getElementById('modalTitle').textContent = 'アプリを追加';
+  document.getElementById('fIcon').value = '';
+  document.getElementById('fName').value = '';
+  document.getElementById('fDesc').value = '';
+  document.getElementById('fHtml').value = '';
+  populateFolderSelect();
+  showModal();
+}
+
+function openEditModal(id) {
+  const a = DB.apps.find(x => x.id===id);
+  if (!a) return;
+  editingId = id;
+  document.getElementById('modalTitle').textContent = 'アプリを編集';
+  document.getElementById('fIcon').value = a.icon||'';
+  document.getElementById('fName').value = a.name||'';
+  document.getElementById('fDesc').value = a.desc||'';
+  document.getElementById('fHtml').value = a.html||'';
+  populateFolderSelect(a.folder);
+  showModal();
+}
+
+function populateFolderSelect(selected) {
+  const sel = document.getElementById('fFolder');
+  sel.innerHTML = DB.folders.map(f =>
+    `<option value="${escAttr(f)}" ${f===(selected||'未分類')?'selected':''}>${escHtml(f)}</option>`
+  ).join('');
+}
+
+function showModal() {
+  const ov = document.getElementById('modalOverlay');
+  ov.classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+
+function saveApp() {
+  const name = document.getElementById('fName').value.trim();
+  if (!name) { toast('アプリ名を入力してください', true); return; }
+
+  const app = {
+    id:     editingId || uid(),
+    name,
+    icon:   document.getElementById('fIcon').value.trim() || '📄',
+    desc:   document.getElementById('fDesc').value.trim(),
+    folder: document.getElementById('fFolder').value,
+    html:   document.getElementById('fHtml').value,
+  };
+
+  if (editingId) {
+    const i = DB.apps.findIndex(x => x.id===editingId);
+    if (i>=0) DB.apps[i] = app;
+  } else {
+    DB.apps.push(app);
+  }
+  closeModal();
+  renderAll();
+  scheduleSave();
+  toast(editingId ? '✅ 編集しました' : '✅ 追加しました');
+}
+
+// ═══════════════════════════════════
+// CONTEXT MENU
+// ═══════════════════════════════════
+function showCtx(e, id) {
+  e.preventDefault(); e.stopPropagation();
+  ctxTarget = id;
+  const menu = document.getElementById('ctxMenu');
+  menu.style.display = 'block';
+  const x = Math.min(e.clientX, window.innerWidth  - 160);
+  const y = Math.min(e.clientY, window.innerHeight - 160);
+  menu.style.left = x + 'px';
+  menu.style.top  = y + 'px';
+}
+function hideCtxMenu() {
+  document.getElementById('ctxMenu').style.display = 'none';
+}
+function ctxOpen()   { if(ctxTarget) openApp(ctxTarget); hideCtxMenu(); }
+function ctxEdit()   { if(ctxTarget) openEditModal(ctxTarget); hideCtxMenu(); }
+function ctxDelete() { if(ctxTarget) deleteApp(ctxTarget); hideCtxMenu(); }
+function ctxMove()   {
+  if (!ctxTarget) return;
+  const f = prompt('移動先フォルダ名:\n' + DB.folders.join(', '));
+  if (f && DB.folders.includes(f)) {
+    const a = DB.apps.find(x => x.id===ctxTarget);
+    if (a) { a.folder = f; renderAll(); scheduleSave(); toast('📁 移動しました'); }
+  }
+  hideCtxMenu();
+}
+
+function deleteApp(id) {
+  if (!confirm('このアプリを削除しますか？')) return;
+  DB.apps = DB.apps.filter(a => a.id!==id);
+  renderAll();
+  scheduleSave();
+  toast('🗑 削除しました');
+}
+
+// ═══════════════════════════════════
+// DRAG & DROP (reorder)
+// ═══════════════════════════════════
+let dragId = null;
+function dragStart(e, id) { dragId = id; e.dataTransfer.effectAllowed='move'; }
+function dragDrop(e, targetId) {
+  e.preventDefault();
+  document.querySelectorAll('.card').forEach(c => c.classList.remove('drag-over'));
+  if (!dragId || dragId===targetId) return;
+  const from = DB.apps.findIndex(a => a.id===dragId);
+  const to   = DB.apps.findIndex(a => a.id===targetId);
+  if (from<0||to<0) return;
+  const [item] = DB.apps.splice(from,1);
+  DB.apps.splice(to,0,item);
+  renderGrid();
+  scheduleSave();
+}
+
+// ═══════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════
+function openSettingsModal() {
+  document.getElementById('sGistId').value   = CFG.gistId;
+  document.getElementById('sToken').value    = CFG.token;
+  document.getElementById('sFilename').value = CFG.filename;
+  renderFolderMgr();
+  const ov = document.getElementById('settingsOverlay');
+  ov.style.display = 'flex';
+}
+function closeSettings() {
+  document.getElementById('settingsOverlay').style.display = 'none';
+}
+function saveSettings() {
+  CFG.gistId   = document.getElementById('sGistId').value.trim();
+  CFG.token    = document.getElementById('sToken').value.trim();
+  CFG.filename = document.getElementById('sFilename').value.trim() || 'webapp-warehouse.json';
+  saveConfig();
+  closeSettings();
+  toast('⚙ 設定を保存しました');
+  loadFromGist();
+}
+
+function renderFolderMgr() {
+  const mgr = document.getElementById('folderMgr');
+  mgr.innerHTML = DB.folders.map(f => `
+    <div style="display:flex;align-items:center;gap:6px;">
+      <span style="flex:1;font-size:12px;color:var(--text);">${escHtml(f)}</span>
+      <button onclick="deleteFolder('${escAttr(f)}')"
+        style="background:transparent;border:none;color:var(--red);cursor:pointer;font-size:12px;">✕</button>
+    </div>
+  `).join('');
+}
+
+function addFolder() {
+  const name = document.getElementById('newFolderInput').value.trim();
+  if (!name) return;
+  if (DB.folders.includes(name)) { toast('すでに存在します', true); return; }
+  DB.folders.push(name);
+  document.getElementById('newFolderInput').value = '';
+  renderFolderMgr();
+  toast(`📁 "${name}" を追加`);
+}
+
+function deleteFolder(name) {
+  if (!confirm(`フォルダ "${name}" を削除しますか？\n中のアプリは「未分類」に移動します`)) return;
+  DB.folders = DB.folders.filter(f => f!==name);
+  DB.apps.forEach(a => { if(a.folder===name) a.folder='未分類'; });
+  renderFolderMgr();
+  renderAll();
+}
+
+function clearAllData() {
+  if (!confirm('全データを消去しますか？')) return;
+  DB = { apps: [], folders: ['未分類', 'ツール', 'ゲーム'] };
+  localStorage.removeItem('ww_db');
+  renderAll();
+  closeSettings();
+  toast('🗑 全データ消去');
+}
+
+// ═══════════════════════════════════
+// STATUS
+// ═══════════════════════════════════
+function setStatus(type, msg) {
+  const dot  = document.getElementById('statusDot');
+  const text = document.getElementById('statusText');
+  dot.className = type==='ok' ? '' : type==='loading' ? 'loading' : 'error';
+  if (type==='ok') dot.style.background='var(--green)';
+  if (type==='error') dot.style.background='var(--red)';
+  if (type==='loading') dot.style.background='var(--yellow)';
+  text.textContent = msg;
+}
+
+// ═══════════════════════════════════
+// TOAST
+// ═══════════════════════════════════
+let toastTimer;
+function toast(msg, isErr) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.borderColor = isErr ? 'var(--red)' : 'var(--green)';
+  el.style.color       = isErr ? 'var(--red)' : 'var(--green)';
+  el.style.display     = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.style.display='none', 2800);
+}
+
+// ═══════════════════════════════════
+// UTILS
+// ═══════════════════════════════════
+function uid() {
+  return Math.random().toString(36).slice(2,10) + Date.now().toString(36);
+}
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(s) {
+  return String(s).replace(/'/g,'&#39;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
